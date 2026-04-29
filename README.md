@@ -3,7 +3,7 @@ The short version: anyone on the same LAN as one of these cameras can pull the a
 
 Target
 
-HardwareIPC_XM210_X2-WR-T_S38SoCXiongmai XM210 (Shenzhen iComm Semiconductor — OUI 10:65:19) OSRT-Thread RTOSFirmwareV5.06.R02.000999WP.00000.140f24.0000000 (built 2025-10-11) Provisioning app iCSee (com.xm.csee) Network protocol DVRIP / Sofia on TCP/34567
+Hardware IPC_XM210_X2-WR-T_S38SoC Xiongmai XM210 (Shenzhen iComm Semiconductor — OUI 10:65:19) OSRT-Thread RTOS Firmware V5.06.R02.000999WP.00000.140f24.0000000 (built 2025-10-11) Provisioning app iCSee (com.xm.csee) Network protocol DVRIP / Sofia on TCP/34567
 Xiongmai is an ODM — they don't sell under their own name, they sell platforms that get rebranded by hundreds of OEMs (Sricam, Floureon, KKMOON, Hiseeu, no-name-Amazon-listing-of-the-week, etc.). So "this brand isn't Xiongmai on the box" doesn't mean it's not affected. The XM210 SoC and V5.0x.R02 firmware lineage are widespread.
 
 Why this device is unusual?

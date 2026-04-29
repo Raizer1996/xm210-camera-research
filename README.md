@@ -188,6 +188,7 @@ When you pair a fresh camera through iCSee, the app generates an admin account a
 |-------|---------|--------|---------|
 | Username | `[a-z]{4}` | 4 chars | ~18 bits |
 | Password | `[a-z0-9]{6}` | 6 chars | ~31 bits |
+
 That's a 36⁶ ≈ 2.2 × 10⁹ password search space. Hashcat mode 22401 supports the XM hash format directly. On any modern CPU you crack this in under 10 seconds, no GPU required. With a GPU you'd be done in milliseconds.
 Sample observed: username abcd, password abc123.
 For comparison, what these credentials should be: 12+ chars from a mixed-case + digits + symbols alphabet, ~75+ bits of entropy. Or, even better, a per-device cryptographically-derived secret bound to the device serial — that way even if it leaks, it doesn't leak in a brute-forceable way.
@@ -254,6 +255,8 @@ I checked the public CVE record systematically. Most of what's there is for the 
 | **CVE-2024-3765** | **Patched on this firmware, but class persists** | MsgID 1009 returns `Ret=102`. My findings are on opcodes the patch didn't touch. |
 | CVE-2025-65856 | No | ONVIF, not present |
 | CVE-2026-34005 | No | Linux/Sofia binary, this is RT-Thread |
+
+
 The closest prior art is CVE-2024-3765. The framing in the writeup is: vendor patched the symptom, not the disease. Same root cause, different opcodes still vulnerable, on a newer firmware family that nobody has published findings on.
 
 
@@ -279,8 +282,13 @@ The PoC scripts that reproduce all four findings are in this repo as separate fi
 References
 
 CVE-2024-3765 — https://nvd.nist.gov/vuln/detail/CVE-2024-3765
+
 netsecfish PoC for CVE-2024-3765 — https://github.com/netsecfish/xiongmai_incorrect_access_control
+
 SEC Consult 2018 XMEye advisory — https://sec-consult.com/blog/detail/millions-of-xiongmai-video-surveillance-devices-can-be-hacked-via-cloud-feature-xmeye-p2p-cloud/
+
 CISA ICSA-18-282-06 — https://www.cisa.gov/news-events/ics-advisories/icsa-18-282-06
+
 python-dvr library — https://github.com/OpenIPC/python-dvr
+
 CVSS 3.1 calculator — https://www.first.org/cvss/calculator/3.1

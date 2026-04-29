@@ -3,10 +3,10 @@ The short version: anyone on the same LAN as one of these cameras can pull the a
 
 Target
 
-HardwareIPC_XM210_X2-WR-T_S38SoCXiongmai XM210 (Shenzhen iComm Semiconductor — OUI 10:65:19)OSRT-Thread RTOSFirmwareV5.06.R02.000999WP.00000.140f24.0000000 (built 2025-10-11)Provisioning appiCSee (com.xm.csee)Network protocolDVRIP / Sofia on TCP/34567
+HardwareIPC_XM210_X2-WR-T_S38SoCXiongmai XM210 (Shenzhen iComm Semiconductor — OUI 10:65:19) OSRT-Thread RTOSFirmwareV5.06.R02.000999WP.00000.140f24.0000000 (built 2025-10-11) Provisioning app iCSee (com.xm.csee) Network protocol DVRIP / Sofia on TCP/34567
 Xiongmai is an ODM — they don't sell under their own name, they sell platforms that get rebranded by hundreds of OEMs (Sricam, Floureon, KKMOON, Hiseeu, no-name-Amazon-listing-of-the-week, etc.). So "this brand isn't Xiongmai on the box" doesn't mean it's not affected. The XM210 SoC and V5.0x.R02 firmware lineage are widespread.
 
-Why this device is unusual
+Why this device is unusual?
 
 Almost every published Xiongmai vulnerability targets the older Linux/Sofia/Hisilicon platform: HTTP buffer overflows, RTSP parser bugs, telnet-enable backdoors on port 9530, debug RCE on port 9527. None of that applies here.
 This thing has exactly one TCP port open:
@@ -19,7 +19,7 @@ So the only thing to talk to is DVRIP on 34567. Everything below was found just 
 
 Scope
 
-Researcher's own device, on the researcher's own isolated lab network, factory-reset before testing. No firmware extraction, no UART work, no JTAG, no interaction with vendor cloud infrastructure. No weaponized payloads against the firmware-upgrade handler — that line was deliberately not crossed.
+The researcher's own device, on the researcher's own isolated lab network, factory-reset before testing. No firmware extraction, no UART work, no JTAG, no interaction with vendor cloud infrastructure. No weaponized payloads against the firmware-upgrade handler — that line was deliberately not crossed.
 Everything is read-side / observational on the network. The findings still chain into full admin compromise, but via legitimate-looking DVRIP requests rather than memory corruption.
 
 DVRIP packet format (for reference)
@@ -38,7 +38,7 @@ Offset  Size  Field
 
 Auth lives in the Session ID field: after a successful login (MsgID 1000) the device hands you a session and you put it in the header for subsequent requests. Or so the protocol intends. 
 
-About that.
+About that...
 
 Findings overview
 | # | Finding                                | CVSS 3.1 (LAN) | (Internet-exposed) |
@@ -52,9 +52,9 @@ Findings overview
 End-to-end: from an IP address on the LAN to admin on the camera in under a minute, with no prior credentials. Details below.
 
 Finding #1: Pre-auth user list and password hash disclosure
-
 AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N — 6.1 (Medium)
 CWE-306 — Missing Authentication for Critical Function
+
 I built a quick MsgID sweeper that sent each opcode in turn with SessionID: 0x00000000 and observed the response codes. Most opcodes came back Ret=203 (auth required) or Ret=205 (account locked, more on that). A handful came back Ret=100. Success.
 Two of the Ret=100 opcodes were really not supposed to be:
 
@@ -148,9 +148,6 @@ for mid, name in TARGETS:
 ```
 
 
-
-
-
 Finding #3: Unauthenticated DoS / watchdog reboot
 AV:A/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H — 6.5 (Medium)
 CWE-20 (Improper Input Validation) / CWE-730 (DoS by Reachable Assertion)
@@ -176,6 +173,7 @@ s.close()
 ```
 
 Practical impact
+
 A reboot loop is sustainable indefinitely from one packet on a timer. While the camera is rebooting, it's not recording — including any motion event during that window. So someone on the LAN can blind a camera by punting it to an infinite reboot cycle.
 The other thing this implies, though I didn't investigate it: a handler that hangs on malformed input is a very plausible candidate for memory corruption. I didn't push on it because cooking up a working RCE payload is a different commitment level than I wanted to make on a device that ships in the wild on currently-shipping firmware. Worth flagging for anyone who picks this up later.
 

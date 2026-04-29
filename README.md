@@ -127,6 +127,7 @@ The MsgID sweep also showed these opcodes responding Ret=100 with no session:
 | 1046 | `Camera` | Stub response — full Camera config needs a sub-name parameter |
 | 1050 | `Storage` | Stub |
 | 1450 | `OPMachine` | Stub |
+
 The full data on 1046/1050/1450 is gated on a sub-parameter that does seem to require a session, so what comes back is mostly a "yes I'd happily tell you, ask more specifically" stub. 1042 leaks more — config metadata, the cloud-bind flag, etc.
 The Wi-Fi PSK is on MsgID 1042 with Name: "NetWork.Wifi", but that path does check the session, so the PSK isn't directly pre-auth-readable. You need to chain through Finding #4 to get there.
 By itself this is low-impact information disclosure. The reason it's worth documenting is that it confirms the diagnosis: the auth gap on this firmware is a class issue affecting multiple opcodes, not a single-opcode oversight. Vendor needs a centralized fix, not another whack-a-mole patch.

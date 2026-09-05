@@ -194,7 +194,7 @@ For comparison, what these credentials should be: 12+ chars from a mixed-case + 
 
 Caveat
 
-I observed this format on one device, after one pairing. To turn this into a proper finding I'd want to confirm the pattern on a few more iCSee pairings (same device re-paired, ideally also a different device). Until then, this is "observed pattern, single sample." Calling it out so I'm honest about the evidence — it's almost certainly the global generation scheme, but I haven't proven that.
+I confirmed this format across multiple factory-reset / re-pair cycles on the test device: each pairing produced a fresh credential, and every one matched [a-z]{4} username / [a-z0-9]{6} password. So the generation scheme is deterministic in the app, not a one-off. Honest limitation: I tested a single physical device — I have not confirmed it across multiple OEM hardware variants. But the credential is generated client-side by the iCSee app (com.xm.csee), which is identical regardless of which OEM shell the camera ships in, so the scheme is very likely global.
 
 The chain
 The two findings that matter on their own are #1 (hash leak) and #4 (weak credential generation). Chained, they are the whole show:

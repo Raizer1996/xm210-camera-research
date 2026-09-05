@@ -189,7 +189,8 @@ When you pair a fresh camera through iCSee, the app generates an admin account a
 | Password | `[a-z0-9]{6}` | 6 chars | ~31 bits |
 
 That's a 36⁶ ≈ 2.2 × 10⁹ password search space. Hashcat mode 22401 supports the XM hash format directly. On any modern CPU you crack this in under 10 seconds, no GPU required. With a GPU you'd be done in milliseconds.
-Sample observed: username abcd, password abc123.
+Sample observed: 4-char lowercase username + 6-char lowercase-alphanumeric password
+(actual values redacted). Format: [a-z]{4} / [a-z0-9]{6}.
 For comparison, what these credentials should be: 12+ chars from a mixed-case + digits + symbols alphabet, ~75+ bits of entropy. Or, even better, a per-device cryptographically-derived secret bound to the device serial — that way even if it leaks, it doesn't leak in a brute-forceable way.
 
 Caveat

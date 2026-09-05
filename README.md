@@ -43,16 +43,16 @@ About that...
 Findings overview
 | # | Finding                                | CVSS 3.1 (LAN) | (Internet-exposed) |
 |---|----------------------------------------|----------------|--------------------|
-| 1 | Pre-auth user/hash disclosure          | 6.1            | 7.5                |
-| 2 | Pre-auth configuration disclosure      | 3.5            | 5.3                |
-| 3 | Unauthenticated DoS via malformed DVRIP | 6.5           | 8.6                |
+| 1 | Pre-auth user/hash disclosure          | 6.5            | 7.5                |
+| 2 | Pre-auth configuration disclosure      | 4.3            | 5.3                |
+| 3 | Unauthenticated DoS via malformed DVRIP | 6.5           | 7.5                |
 | 4 | iCSee app weak credential generation   | 6.4            | 8.1                |
 
-| **#1 + #4 chained** | | **8.3 (High)** | **9.8 (Critical)** |
+| **#1 + #4 chained** | | **8.8 (High)** | **9.8 (Critical)** |
 End-to-end: from an IP address on the LAN to admin on the camera in under a minute, with no prior credentials. Details below.
 
 Finding #1: Pre-auth user list and password hash disclosure
-AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N — 6.1 (Medium)
+AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N — 6.5 (Medium)
 CWE-306 — Missing Authentication for Critical Function
 
 I built a quick MsgID sweeper that sent each opcode in turn with SessionID: 0x00000000 and observed the response codes. Most opcodes came back Ret=203 (auth required) or Ret=205 (account locked, more on that). A handful came back Ret=100. Success.
@@ -118,7 +118,7 @@ You don't need to crack anything to log in as admin — just send tlJwpbo6 as th
 
 Finding #2: Pre-auth configuration disclosure (more opcodes, same bug)
 
-AV:A/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N — 3.5 (Low)
+AV:A/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N — 4.3 (Low)
 CWE-306 — Missing Authentication for Critical Function
 The MsgID sweep also showed these opcodes responding Ret=100 with no session:
 | MsgID | Name | What you get |
@@ -178,8 +178,8 @@ A reboot loop is sustainable indefinitely from one packet on a timer. While the 
 The other thing this implies, though I didn't investigate it: a handler that hangs on malformed input is a very plausible candidate for memory corruption. I didn't push on it because cooking up a working RCE payload is a different commitment level than I wanted to make on a device that ships in the wild on currently-shipping firmware. Worth flagging for anyone who picks this up later.
 
 Finding #4: iCSee app generates absurdly weak admin credentials
-AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H — 8.3 (High) when chained with #1
-CWE-331 — Insufficient Entropy
+AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H — 8.8 (High) when chained with #1
+CWE-521 — Weak Password Requirements
 
 This is the one that makes Finding #1 actually matter.
 When you pair a fresh camera through iCSee, the app generates an admin account and pushes it to the device. The credentials it picks are visible in the app's device-management screen. For my test device:
@@ -214,7 +214,7 @@ Step 6: You are admin. You can:
         - Push a firmware "update"
 
 End-to-end with no prior knowledge beyond an IP: under one minute.
-AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H → 8.3 High
+AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H → 8.8 High
 If the camera is port-forwarded to the internet (which the iCSee setup tutorials sometimes suggest for direct-IP access without P2P): 9.8 Critical.
 
 What I actually demonstrated end-to-end on my own device

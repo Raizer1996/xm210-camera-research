@@ -1,3 +1,8 @@
+> **Researcher:** Artyom Bordulev
+> GitHub: [@Raizer1996](https://github.com/Raizer1996) · LinkedIn: [artyom-bordulev](https://www.linkedin.com/in/artyom-bordulev-9b580b1ba/)
+> Advisory: XM210-2026-001 · CVEs pending publication (MITRE CNA-LR: CAN-2026-2037011, -2037013, -2037014)
+
+
 A friend handed me a small Wi-Fi IP camera he'd stopped using. I factory-reset it, paired it through the iCSee app onto an isolated test network, and started poking. What I found is the subject of this writeup: four real vulnerabilities on a device that's still being sold today, three of which appear to be unreported.
 The short version: anyone on the same LAN as one of these cameras can pull the admin password hash without authenticating, crack it offline in a few seconds (because the iCSee app generates absurdly weak credentials), and then own the device — live video, recorded video, Wi-Fi PSK, the works. Plus a separate one-packet DoS for good measure.
 

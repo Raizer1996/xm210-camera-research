@@ -5,7 +5,7 @@
 **Component:** iCSee Android application `com.xm.csee`, version 7.9.5_G (versionCode 79531)
 **Weakness:** CWE-338 — Use of Cryptographically Weak PRNG
 **Method:** static analysis of the application package (decompilation); no device or network interaction
-**Severity:** CVSS v3.1 `AV:A/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H` — Base **7.0 (High)**
+**Severity:** CVSS v3.1 `AV:A/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H` — Base **7.5 (High)**
 
 ## Summary
 

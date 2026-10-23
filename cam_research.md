@@ -34,7 +34,7 @@ The findings do not duplicate existing public CVE records. The most closely rela
 | 2  | Pre-authentication configuration disclosure | 4.3 (Low) | 5.3 (Medium) |
 | 3  | Unauthenticated denial of service via malformed DVRIP commands | 6.5 (Medium) | 7.5 (High) |
 | 4  | Insufficient entropy in device-generated administrator credentials | 6.4 (Medium) | 8.1 (High) |
-| 5  | Predictable PRNG in iCSee credential generation | 7.0 (High) | 7.0 (High) |
+| 5  | Predictable PRNG in iCSee credential generation | 7.5 (High) | 7.5 (High) |
 | —  | **Findings 1 and 4 chained** | **8.8 (High)** | **9.8 (Critical)** |
 
 ---
@@ -294,7 +294,7 @@ In isolation, the impact is limited to a reduction in the offline-cracking effor
 | | |
 |---|---|
 | **CVSS 3.1 vector** | `AV:A/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H` |
-| **Base score** | 7.0 (High) |
+| **Base score** | 7.5 (High) |
 | **CWE** | CWE-338 — Use of Cryptographically Weak PRNG |
 | **Affected component** | iCSee mobile application (`com.xm.csee` 7.9.5_G) |
 | **Method** | Static analysis of the application package |

@@ -2,7 +2,7 @@
 
 > **Researcher:** Artyom Bordulev
 > GitHub: [@Raizer1996](https://github.com/Raizer1996) · LinkedIn: [artyom-bordulev](https://www.linkedin.com/in/artyom-bordulev-9b580b1ba/)
-> Advisory: XM210-2026-001 · CVEs pending publication (MITRE CNA-LR: CAN-2026-2037011, -2037013, -2037014)
+> Advisory: XM210-2026-001 · CVEs pending publication (MITRE CNA-LR: CAN-2026-2037011, -2037013, -2037014, -2040570)
 >
 > This is the technical writeup. The formal advisory is in [`cam_research.md`](cam_research.md); proof-of-concept scripts are in [`xiongmai-xm210-pocs.txt`](xiongmai-xm210-pocs.txt).
 
@@ -87,7 +87,7 @@ device issues a session identifier that subsequent requests are expected to pres
 | 2 | Pre-auth configuration disclosure | 4.3 | 5.3 |
 | 3 | Unauthenticated DoS via malformed DVRIP | 6.5 | 7.5 |
 | 4 | Device low-entropy admin credential | 6.4 | 8.1 |
-| 5 | iCSee predictable PRNG (application) | 7.0 | — |
+| 5 | iCSee predictable PRNG (application) | 7.5 | — |
 | **1 + 4 chained** | | **8.8 (High)** | **9.8 (Critical)** |
 
 End to end, the chain takes an attacker from an IP address on the LAN to administrator on the camera
@@ -274,7 +274,7 @@ the XM210 platform and expected to be consistent across OEM rebrands. (Actual va
 
 ## Finding 5 — iCSee application uses a predictable PRNG
 
-`AV:A/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H` — 7.0 (High) · CWE-338 (Use of Cryptographically Weak PRNG)
+`AV:A/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H` — 7.5 (High) · CWE-338 (Use of Cryptographically Weak PRNG)
 
 Separately from the device credential in Finding 4, the iCSee app has its own credential-generation
 path, used during Wi-Fi / AP provisioning (`ChangeRandomUser`): it builds an 8-character username and

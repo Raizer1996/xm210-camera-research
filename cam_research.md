@@ -16,12 +16,13 @@ subtitle: "Multiple Vulnerabilities in Xiongmai IPC_XM210 RT-Thread Firmware V5.
 
 ## 1. Executive Summary
 
-This advisory describes four vulnerabilities identified in a current-shipping IP camera based on the Xiongmai XM210 system-on-chip platform (model `IPC_XM210_X2-WR-T_S38`, firmware `V5.06.R02.000999WP`, build date 2025-10-11), provisioned via the iCSee mobile application (`com.xm.csee`).
+This advisory describes five vulnerabilities identified in a current-shipping IP camera based on the Xiongmai XM210 system-on-chip platform (model `IPC_XM210_X2-WR-T_S38`, firmware `V5.06.R02.000999WP`, build date 2025-10-11), provisioned via the iCSee mobile application (`com.xm.csee`).
 
 The vulnerabilities are documented as follows:
 
 - **Three issues** affect the device firmware: pre-authentication disclosure of user credentials (Finding 1), pre-authentication disclosure of configuration data (Finding 2), and an unauthenticated denial-of-service condition (Finding 3).
 - **One issue** affects credential strength: the administrator credential generated **on the device** during provisioning has insufficient entropy (Finding 4). The iCSee application reads and displays this credential via the DVRIP `GetRandomUserInfo` request; it does not generate it.
+- **One issue** affects the iCSee provisioning application: a predictable pseudo-random number generator in its own, separate credential-generation path (Finding 5).
 
 When chained, Findings 1 and 4 enable an unauthenticated attacker on the local network to retrieve the administrator password hash, perform offline recovery of the plaintext credential within seconds, and obtain complete administrative control of the device. Demonstrated impact includes access to live and recorded video streams, retrieval of the configured Wi-Fi pre-shared key in plaintext, and arbitrary device reconfiguration.
 
@@ -33,6 +34,7 @@ The findings do not duplicate existing public CVE records. The most closely rela
 | 2  | Pre-authentication configuration disclosure | 4.3 (Low) | 5.3 (Medium) |
 | 3  | Unauthenticated denial of service via malformed DVRIP commands | 6.5 (Medium) | 7.5 (High) |
 | 4  | Insufficient entropy in device-generated administrator credentials | 6.4 (Medium) | 8.1 (High) |
+| 5  | Predictable PRNG in iCSee credential generation | 7.0 (High) | 7.0 (High) |
 | —  | **Findings 1 and 4 chained** | **8.8 (High)** | **9.8 (Critical)** |
 
 ---
@@ -287,6 +289,32 @@ In isolation, the impact is limited to a reduction in the offline-cracking effor
 
 ---
 
+### 4.5 Finding 5: Predictable pseudo-random number generator in iCSee credential generation
+
+| | |
+|---|---|
+| **CVSS 3.1 vector** | `AV:A/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H` |
+| **Base score** | 7.0 (High) |
+| **CWE** | CWE-338 — Use of Cryptographically Weak PRNG |
+| **Affected component** | iCSee mobile application (`com.xm.csee` 7.9.5_G) |
+| **Method** | Static analysis of the application package |
+
+#### 4.5.1 Description
+
+Independent of the device-generated credential in Finding 4, the iCSee application contains its own credential-generation path, used during Wi-Fi / AP ("quick config") provisioning (the `ChangeRandomUser` flow). It generates an 8-character username and a 16-character password via `org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric()`. In the bundled library version this is backed by a single shared static `java.util.Random` — a 48-bit linear congruential generator, not a cryptographically secure RNG.
+
+The internal state of `java.util.Random` is recoverable from approximately two consecutive 32-bit outputs, after which subsequent outputs are deterministic. The 8/16-character length does not mitigate this, because predictability is a property of the generator rather than of the output length. Apache Commons Lang added secure variants (`RandomStringUtils.secure()`) in release 3.16.0; the bundled build predates or omits them.
+
+#### 4.5.2 Analysis and limitation
+
+This finding is derived from static analysis of the application package (APK decompilation). Deployment of this application-generated credential as the active administrator account was not confirmed on the test device — the deployed account was the four-character device-generated credential documented in Finding 4. The finding therefore documents a predictable-RNG code path in the application; where that path sets the device administrator password, the password is predictable to an adversary who can recover the generator state.
+
+#### 4.5.3 Impact
+
+An adversary who recovers the generator state can predict the credentials this path produces. The `AC:H` metric reflects the requirement to first observe at least one generator output; the most plausible path is presence on the local network during provisioning (`AV:A`). A demonstrated remote means of obtaining an output would raise the vector to `AV:N` (Base 8.1). A standalone advisory for this finding is provided in `DISCLOSURE_finding5_app_predictable_rng.md`.
+
+---
+
 ## 5. Chained Attack Scenario
 
 The combination of Findings 1 and 4 constitutes the principal exploitation scenario contemplated by this advisory. The attack proceeds as follows:
@@ -404,7 +432,7 @@ The 90-day disclosure period is consistent with industry practice. Prior researc
 
 ## Appendix A: PoC Inventory
 
-The proof-of-concept scripts referenced in this advisory are provided as a separate archive (`xiongmai-xm210-pocs.tar.gz`) accompanying this document. The archive contains:
+The proof-of-concept scripts referenced in this advisory are provided as a separate archive (`xiongmai-xm210-pocs.txt`) accompanying this document. The archive contains:
 
 - `poc1_user_disclosure.py` — Reproduction of Finding 1
 - `poc2_config_disclosure.py` — Reproduction of Finding 2
